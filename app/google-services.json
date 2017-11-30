@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "30624119760",
+    "firebase_url": "https://hlacab-8eea3.firebaseio.com",
+    "project_id": "hlacab-8eea3",
+    "storage_bucket": "hlacab-8eea3.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:30624119760:android:e6041c2047049210",
+        "android_client_info": {
+          "package_name": "com.hlacab.hladriver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "30624119760-cjh2u3up4i25quqtos0937hv5oficbi3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB2ujOTGeiVoesBziWgujTMiPb_Hn64_4c"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
