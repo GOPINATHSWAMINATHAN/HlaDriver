@@ -7,7 +7,7 @@
     android:background="#e9e9e9"
     tools:context="com.hlacab.hladriver.Profile">
 
-    <android.support.v4.widget.CircleImageView
+    <ImageView
         android:id="@+id/image"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -29,7 +29,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="username"
+            android:hint="E-mail"
             android:textColorHint="#e45818" />
 
         <EditText
@@ -41,8 +41,37 @@
             android:textColorHint="#c46218" />
 
     </LinearLayout>
+    <LinearLayout
+
+        android:id="@+id/two_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/image"
+        android:layout_marginTop="100dp"
+        android:gravity="center"
+
+        android:orientation="horizontal">
+
+        <EditText
+            android:id="@+id/phoneno"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="phoneno"
+            android:textColorHint="#e45818" />
+
+        <EditText
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Name"
+            android:textColorHint="#c46218" />
+
+    </LinearLayout>
 
     <Button
+        android:id="@+id/login"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@+id/my_layout"
