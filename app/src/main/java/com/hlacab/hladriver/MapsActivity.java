@@ -48,9 +48,11 @@ import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.SquareCap;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.hlacab.hladriver.common.Common;
 import com.hlacab.hladriver.model.Token;
@@ -87,7 +89,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Marker carMarker;
     private float v;
     private double lat, lng;
-    private Handler handler;
+    public Handler handler;
     private LatLng startPosition, endPosition, currentPosition;
     private int index, next;
     // private Button btnGo;
@@ -97,6 +99,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Polyline blackPolyline, greyPolyline;
     private IGoogleAPI mService;
 
+
+    DatabaseReference onlineRef, currentUserRef;
 
     Runnable drawPathRunnable = new Runnable() {
         @Override
@@ -138,9 +142,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (startPosition.latitude < endPosition.latitude && startPosition.longitude < endPosition.longitude) {
             return (float) (Math.toDegrees(Math.atan(lng / lat)));
         } else if (startPosition.latitude >= endPosition.latitude && startPosition.longitude < endPosition.longitude) {
-            return (float) ((90 - Math.toDegrees(Math.atan(lng / lat)))+90);
-        } else if (startPosition.latitude > endPosition.latitude && startPosition.longitude >= endPosition.longitude) {
-            return (float) (Math.toDegrees(Math.atan(lng / lat))+180);
+            return (float) ((90 - Math.toDegrees(Math.atan(lng / lat))) + 90);
+        } else if (startPosition.latitude >= endPosition.latitude && startPosition.longitude >= endPosition.longitude) {
+            return (float) (Math.toDegrees(Math.atan(lng / lat)) + 180);
         } else if (startPosition.latitude < endPosition.latitude && startPosition.longitude >= endPosition.longitude) {
             return (float) ((90 - Math.toDegrees(Math.atan(lng / lat))) + 270);
         }
@@ -154,16 +158,36 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_maps);
         mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        //Presence System
+
+        onlineRef = FirebaseDatabase.getInstance().getReference().child(".info/connected");
+        currentUserRef = FirebaseDatabase.getInstance().getReference(Common.driver_tb1).child(FirebaseAuth.getInstance().getCurrentUser().getUid());
+        onlineRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                //we will remove value from driver tb1 when driver disconnected
+                currentUserRef.onDisconnect().removeValue();
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+
+
         location_switch = (MaterialAnimatedSwitch) findViewById(R.id.location_switch);
         location_switch.setOnCheckedChangeListener(new MaterialAnimatedSwitch.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(boolean isOnline) {
                 if (isOnline) {
-
+                    FirebaseDatabase.getInstance().goOnline();
                     startLocationUpdates();
                     displayLocation();
                     Snackbar.make(mapFragment.getView(), "You are online", Snackbar.LENGTH_SHORT).show();
                 } else {
+                    FirebaseDatabase.getInstance().goOffline();
                     stopLocationUpdates();
                     mCurrent.remove();
                     mMap.clear();
@@ -220,10 +244,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void updateFirebaseToken() {
 
-        FirebaseDatabase db=FirebaseDatabase.getInstance();
-        DatabaseReference tokens=db.getReference(Common.token_tb1);
-        Token token=new Token(FirebaseInstanceId.getInstance().getToken());
-            tokens.child(FirebaseAuth.getInstance().getCurrentUser().getUid()).setValue(token);
+        FirebaseDatabase db = FirebaseDatabase.getInstance();
+        DatabaseReference tokens = db.getReference(Common.token_tb1);
+        Token token = new Token(FirebaseInstanceId.getInstance().getToken());
+        tokens.child(FirebaseAuth.getInstance().getCurrentUser().getUid()).setValue(token);
 
     }
 
@@ -232,7 +256,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         currentPosition = new LatLng(Common.mLastLocation.getLatitude(), Common.mLastLocation.getLongitude());
         String requestApi = null;
         try {
-            requestApi = "https://maps.googleapis.com/maps/api/directions/json?" + "mode=driving&" + "transit_routing_preference=less_driving&" + "origin=" + currentPosition.latitude + "," + currentPosition.longitude + "&" + "destination=" + destination + "&" + "key=AIzaSyBajNuD1hEue_eGccmsSQwG1k6aOtoUQ80";
+            requestApi = "https://maps.googleapis.com/maps/api/directions/json?" +
+                    "mode=driving&" +
+                    "transit_routing_preference=less_driving&" +
+                    "origin=" + currentPosition.latitude + "," + currentPosition.longitude + "&" +
+                    "destination=" + destination + "&" + "key=" + getResources().getString(R.string.google_direction_api);
             Log.d("EDMTDEV", requestApi);
 
             mService.getPath(requestApi).enqueue(new Callback<String>() {
