@@ -1,13 +1,17 @@
 package com.hlacab.hladriver;
 
 import android.animation.ValueAnimator;
+import android.content.Intent;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
+import android.view.View;
 import android.view.animation.LinearInterpolator;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +25,10 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.SquareCap;
 import com.hlacab.hladriver.common.Common;
+import com.hlacab.hladriver.model.FCMResponse;
+import com.hlacab.hladriver.model.Notification;
+import com.hlacab.hladriver.model.Sender;
+import com.hlacab.hladriver.model.Token;
 import com.hlacab.hladriver.remote.IFCMService;
 import com.hlacab.hladriver.remote.IGoogleAPI;
 
@@ -38,28 +46,77 @@ public class ConsumerCall extends AppCompatActivity {
 
     TextView txtTime, txtAddress, txtDistance;
     MediaPlayer mediaPlayer;
-
+    Button btnCancel,btnAccept;
     IGoogleAPI mService;
-
+IFCMService mFCMService;
+    String customerId;
+    double lat,lng;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_consumer_call);
         mService = Common.getGoogleAPI();
+        mFCMService=Common.getFCMService();
         txtAddress = (TextView) findViewById(R.id.txtAddress);
         txtDistance = (TextView) findViewById(R.id.txtDistance);
         txtTime = (TextView) findViewById(R.id.txtTime);
+
+        btnAccept=(Button)findViewById(R.id.btnAccept);
+        btnCancel=(Button)findViewById(R.id.btnDecline);
+
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+if(!TextUtils.isEmpty(customerId))
+{
+    cancelBooking(customerId);
+}
+            }
+        });
+
+        btnAccept.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent=new Intent(getApplicationContext(),DriverTracking.class);
+                intent.putExtra("lat",lat);
+                intent.putExtra("lng",lng);
+                startActivity(intent);
+                finish();
+            }
+        });
 
         mediaPlayer = MediaPlayer.create(this, R.raw.shooting);
         mediaPlayer.setLooping(true);
         mediaPlayer.start();
 
         if (getIntent() != null) {
-            double lat = getIntent().getDoubleExtra("lat", -1.0);
-            double lng = getIntent().getDoubleExtra("lng", -1.0);
-
+            lat = getIntent().getDoubleExtra("lat", -1.0);
+            lng = getIntent().getDoubleExtra("lng", -1.0);
+            customerId=getIntent().getStringExtra("customer");
             getDirection(lat, lng);
         }
+    }
+
+    private void cancelBooking(String customerId) {
+        Token token=new Token(customerId);
+        Notification notification=new Notification("Notice","Driver has cancelled your request");
+        Sender sender=new Sender(token.getToken(),notification);
+        mFCMService.sendMessage(sender).enqueue(new Callback<FCMResponse>() {
+            @Override
+            public void onResponse(Call<FCMResponse> call, Response<FCMResponse> response) {
+                if(response.body().success==1)
+                {
+                    Toast.makeText(getApplicationContext(),"Cancelled",Toast.LENGTH_LONG).show();
+                    finish();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<FCMResponse> call, Throwable t) {
+
+            }
+        });
+
     }
 
     private void getDirection(double lat, double lng) {
@@ -67,7 +124,7 @@ public class ConsumerCall extends AppCompatActivity {
 
         String requestApi = null;
         try {
-            requestApi = "https://maps.googleapis.com/maps/api/directions/json?" + "mode=driving&" + "transit_routing_preference=less_driving&" + "origin=" + Common.mLastLocation.getLatitude() + "," + Common.mLastLocation.getLongitude() + "&" + "destination=" + lat + "," + lng + "&" + "key=AIzaSyBajNuD1hEue_eGccmsSQwG1k6aOtoUQ80";
+            requestApi = "https://maps.googleapis.com/maps/api/directions/json?" + "mode=driving&" + "transit_routing_preference=less_driving&" + "origin=" + Common.mLastLocation.getLatitude() + "," + Common.mLastLocation.getLongitude() + "&" + "destination=" + lat + "," + lng + "&" + "key="+getResources().getString(R.string.google_direction_api);
             Log.d("EDMTDEV", requestApi);
 
             mService.getPath(requestApi).enqueue(new Callback<String>() {

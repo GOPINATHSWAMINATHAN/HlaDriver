@@ -21,6 +21,9 @@ public class MyFirebaseMessaging extends FirebaseMessagingService{
         Intent intent=new Intent(getBaseContext(), ConsumerCall.class);
         intent.putExtra("lat",customer_location.latitude);
         intent.putExtra("lng",customer_location.longitude);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+       intent.putExtra("customer",remoteMessage.getNotification().getTitle());
+
         startActivity(intent);
 
     }

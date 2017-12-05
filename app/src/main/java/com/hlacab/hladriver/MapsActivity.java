@@ -189,10 +189,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 } else {
                     FirebaseDatabase.getInstance().goOffline();
                     stopLocationUpdates();
-                    mCurrent.remove();
-                    mMap.clear();
-                    handler.removeCallbacks(drawPathRunnable);
-                    Snackbar.make(mapFragment.getView(), "You are offline", Snackbar.LENGTH_SHORT).show();
+                    if (mCurrent != null) {
+                        mCurrent.remove();
+                        mMap.clear();
+                        handler.removeCallbacks(drawPathRunnable);
+                        Snackbar.make(mapFragment.getView(), "You are offline", Snackbar.LENGTH_SHORT).show();
+                    }
                 }
             }
         });
