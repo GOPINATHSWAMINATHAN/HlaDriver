@@ -29,6 +29,7 @@ import com.google.android.gms.common.api.Status;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.AutocompleteFilter;
 import com.google.android.gms.location.places.Place;
 import com.google.android.gms.location.places.ui.PlaceAutocompleteFragment;
 import com.google.android.gms.location.places.ui.PlaceSelectionListener;
@@ -54,8 +55,10 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.maps.android.SphericalUtil;
 import com.hlacab.hladriver.common.Common;
 import com.hlacab.hladriver.model.Token;
+import com.hlacab.hladriver.remote.IFCMService;
 import com.hlacab.hladriver.remote.IGoogleAPI;
 
 import org.json.JSONArray;
@@ -80,11 +83,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static int FASTEST_INTERVAL = 2000;
     private static int DISPLACEMENT = 10;
     DatabaseReference drivers;
-    GeoFire geoFire;
     Marker mCurrent;
     MaterialAnimatedSwitch location_switch;
     SupportMapFragment mapFragment;
-
+    AutocompleteFilter typeFilter;
     private List<LatLng> polyLineList;
     private Marker carMarker;
     private float v;
@@ -92,6 +94,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public Handler handler;
     private LatLng startPosition, endPosition, currentPosition;
     private int index, next;
+
     // private Button btnGo;
     private EditText edtPlace;
     private String destination;
@@ -99,6 +102,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Polyline blackPolyline, greyPolyline;
     private IGoogleAPI mService;
 
+
+    GeoFire geoFire;
 
     DatabaseReference onlineRef, currentUserRef;
 
@@ -201,6 +206,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         polyLineList = new ArrayList<>();
         //Places API
+
+        typeFilter = new AutocompleteFilter.Builder().setTypeFilter(AutocompleteFilter.TYPE_FILTER_ADDRESS).setTypeFilter(3).build();
 
         places = (PlaceAutocompleteFragment) getFragmentManager().findFragmentById(R.id.gopinath_fragment);
         places.setOnPlaceSelectedListener(new PlaceSelectionListener() {
@@ -462,6 +469,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 final double latitude = Common.mLastLocation.getLatitude();
                 final double longitude = Common.mLastLocation.getLongitude();
 
+                LatLng center = new LatLng(latitude, longitude);
+                LatLng northSide = SphericalUtil.computeOffset(center, 100000, 0);
+                LatLng southSide = SphericalUtil.computeOffset(center, 100000, 180);
+                LatLngBounds bounds = LatLngBounds.builder().include(northSide).include(southSide).build();
+                places.setBoundsBias(bounds);
+                places.setFilter(typeFilter);
 
                 //Update to Firebase
                 geoFire.setLocation(FirebaseAuth.getInstance().getCurrentUser().getUid(), new GeoLocation(latitude, longitude), new GeoFire.CompletionListener() {

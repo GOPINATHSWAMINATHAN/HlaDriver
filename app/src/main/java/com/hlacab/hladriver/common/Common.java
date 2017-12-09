@@ -2,6 +2,7 @@ package com.hlacab.hladriver.common;
 
 import android.location.Location;
 
+import com.hlacab.hladriver.model.User;
 import com.hlacab.hladriver.remote.FCMClient;
 import com.hlacab.hladriver.remote.IFCMService;
 import com.hlacab.hladriver.remote.IGoogleAPI;
@@ -17,8 +18,11 @@ public class Common {
     public static final String user_driver_tb1 = "DriversInformation";
     public static final String user_rider_tb1 = "RidersInformation";
     public static final String pickup_request_tb1 = "PickupRequest";
-    public static Location mLastLocation=null;
+    public static Location mLastLocation = null;
     public static final String token_tb1 = "Tokens";
+
+
+    public static User currentUser;
 
     public static final String baseURL = "https://maps.googleapis.com";
 
@@ -28,8 +32,7 @@ public class Common {
         return RetrofitClient.getClient(baseURL).create(IGoogleAPI.class);
     }
 
-    public static IFCMService getFCMService()
-    {
+    public static IFCMService getFCMService() {
         return FCMClient.getClient(fcmURL).create(IFCMService.class);
     }
 

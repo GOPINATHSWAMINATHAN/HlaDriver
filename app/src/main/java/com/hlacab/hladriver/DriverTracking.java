@@ -20,6 +20,8 @@ import android.widget.Toast;
 
 import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
+import com.firebase.geofire.GeoQuery;
+import com.firebase.geofire.GeoQueryEventListener;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -44,8 +46,14 @@ import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.maps.model.SquareCap;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.FirebaseDatabase;
 import com.hlacab.hladriver.common.Common;
 import com.hlacab.hladriver.helper.DirectionJSONParser;
+import com.hlacab.hladriver.model.FCMResponse;
+import com.hlacab.hladriver.model.Notification;
+import com.hlacab.hladriver.model.Sender;
+import com.hlacab.hladriver.model.Token;
+import com.hlacab.hladriver.remote.IFCMService;
 import com.hlacab.hladriver.remote.IGoogleAPI;
 
 import org.json.JSONArray;
@@ -66,6 +74,7 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
 
     double riderLat, riderLng;
 
+    String customerId;
 
     private static final int MY_PERMISSION_REQUEST_CODE = 7000;
     private static final int PLAY_SERVICES_RES_REQUEST = 7001;
@@ -82,6 +91,10 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
 
     IGoogleAPI mService;
 
+    IFCMService mFCMService;
+
+    GeoFire geoFire;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -94,20 +107,21 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
         if (getIntent() != null) {
             riderLat = getIntent().getDoubleExtra("lat", -1.0);
             riderLng = getIntent().getDoubleExtra("lng", -1.0);
+            customerId = getIntent().getStringExtra("customerId");
         }
 
-        mService=Common.getGoogleAPI();
+        mService = Common.getGoogleAPI();
+        mFCMService = Common.getFCMService();
         setUpLocation();
     }
 
-    private void setUpLocation()
-    {
-        if(checkPlayServices())
-        {
+    private void setUpLocation() {
+        if (checkPlayServices()) {
             buildGoogleApiClient();
             createLocationRequest();
         }
     }
+
     private void createLocationRequest() {
         mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(UPDATE_INTERVAL);
@@ -149,7 +163,58 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
         mMap = googleMap;
 
         // Add a marker in Sydney and move the camera
-        riderMarker=mMap.addCircle(new CircleOptions().center(new LatLng(riderLat,riderLng)).radius(10).strokeColor(Color.BLUE).fillColor(0x220000FF).strokeWidth(5.0f));
+        riderMarker = mMap.addCircle(new CircleOptions().center(new LatLng(riderLat, riderLng)).radius(50).strokeColor(Color.BLUE).fillColor(0x220000FF).strokeWidth(5.0f));
+
+        //Create GeoFences with radius is 50m
+        geoFire = new GeoFire(FirebaseDatabase.getInstance().getReference(Common.driver_tb1));
+        GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(riderLat, riderLng), 0.05f);
+        geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
+            @Override
+            public void onKeyEntered(String key, GeoLocation location) {
+                //We need customerID to send notification.
+                sendArrivedNotification(customerId);
+            }
+
+            @Override
+            public void onKeyExited(String key) {
+
+            }
+
+            @Override
+            public void onKeyMoved(String key, GeoLocation location) {
+
+            }
+
+            @Override
+            public void onGeoQueryReady() {
+
+            }
+
+            @Override
+            public void onGeoQueryError(DatabaseError error) {
+
+            }
+        });
+
+    }
+
+    private void sendArrivedNotification(String customerId) {
+        Token token = new Token(customerId);
+        Notification notification = new Notification("Arrived", String.format("The driver %s has arrived at your location", Common.currentUser.getName()));
+        Sender sender = new Sender(token.getToken(), notification);
+        mFCMService.sendMessage(sender).enqueue(new Callback<FCMResponse>() {
+            @Override
+            public void onResponse(Call<FCMResponse> call, Response<FCMResponse> response) {
+                if (response.body().success != 1) {
+                    Toast.makeText(getApplicationContext(), "Failed!", Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<FCMResponse> call, Throwable t) {
+
+            }
+        });
 
     }
 
@@ -170,13 +235,12 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
 
             final double latitude = Common.mLastLocation.getLatitude();
             final double longitude = Common.mLastLocation.getLongitude();
-            if(driverMarker!=null)
+            if (driverMarker != null)
                 driverMarker.remove();
-            driverMarker=mMap.addMarker(new MarkerOptions().position(new LatLng(latitude,longitude)).title("You").icon(BitmapDescriptorFactory.defaultMarker()));
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(latitude,longitude),17.0f));
+            driverMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(latitude, longitude)).title("You").icon(BitmapDescriptorFactory.defaultMarker()));
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(latitude, longitude), 17.0f));
 
-            if(direction!=null)
-            {
+            if (direction != null) {
                 direction.remove();
                 getDirection();
             }
@@ -187,23 +251,22 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
         }
     }
 
-    private void getDirection()
-    {
-       LatLng currentPosition = new LatLng(Common.mLastLocation.getLatitude(), Common.mLastLocation.getLongitude());
+    private void getDirection() {
+        LatLng currentPosition = new LatLng(Common.mLastLocation.getLatitude(), Common.mLastLocation.getLongitude());
         String requestApi = null;
         try {
             requestApi = "https://maps.googleapis.com/maps/api/directions/json?" +
                     "mode=driving&" +
                     "transit_routing_preference=less_driving&" +
                     "origin=" + currentPosition.latitude + "," + currentPosition.longitude + "&" +
-                    "destination=" + riderLat+","+riderLng + "&" + "key=" + getResources().getString(R.string.google_direction_api);
+                    "destination=" + riderLat + "," + riderLng + "&" + "key=" + getResources().getString(R.string.google_direction_api);
             Log.d("EDMTDEV", requestApi);
 
             mService.getPath(requestApi).enqueue(new Callback<String>() {
                 @Override
                 public void onResponse(Call<String> call, Response<String> response) {
                     try {
-new ParserTask().execute(response.body().toString());
+                        new ParserTask().execute(response.body().toString());
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -244,17 +307,17 @@ new ParserTask().execute(response.body().toString());
 
     }
 
-    private class ParserTask extends AsyncTask<String,Integer,List<List<HashMap<String,String>>>> {
+    private class ParserTask extends AsyncTask<String, Integer, List<List<HashMap<String, String>>>> {
 
-        ProgressDialog mDialog=new ProgressDialog(DriverTracking.this);
+        ProgressDialog mDialog = new ProgressDialog(DriverTracking.this);
 
-        protected void onPreExecute()
-        {
+        protected void onPreExecute() {
             super.onPreExecute();
             mDialog.setMessage("Please Wait..");
             mDialog.show();
 
         }
+
         @Override
         protected List<List<HashMap<String, String>>> doInBackground(String... strings) {
             JSONObject jObject;
@@ -274,19 +337,17 @@ new ParserTask().execute(response.body().toString());
         @Override
         protected void onPostExecute(List<List<HashMap<String, String>>> lists) {
             mDialog.dismiss();
-            ArrayList points=null;
-            PolylineOptions polylineOptions=null;
-            for(int i=0;i<lists.size();i++)
-            {
-                points=new ArrayList();
-                polylineOptions=new PolylineOptions();
-                List<HashMap<String,String>> path=lists.get(i);
-                for(int j=0;i<path.size();j++)
-                {
-                    HashMap<String,String> point=path.get(i);
-                    double lat=Double.parseDouble(point.get("lat"));
-                    double lng=Double.parseDouble(point.get("lng"));
-                    LatLng position=new LatLng(lat,lng);
+            ArrayList points = null;
+            PolylineOptions polylineOptions = null;
+            for (int i = 0; i < lists.size(); i++) {
+                points = new ArrayList();
+                polylineOptions = new PolylineOptions();
+                List<HashMap<String, String>> path = lists.get(i);
+                for (int j = 0; i < path.size(); j++) {
+                    HashMap<String, String> point = path.get(i);
+                    double lat = Double.parseDouble(point.get("lat"));
+                    double lng = Double.parseDouble(point.get("lng"));
+                    LatLng position = new LatLng(lat, lng);
 
                     points.add(position);
                 }
@@ -296,7 +357,7 @@ new ParserTask().execute(response.body().toString());
                 polylineOptions.color(Color.RED);
                 polylineOptions.geodesic(true);
             }
-            direction=mMap.addPolyline(polylineOptions);
+            direction = mMap.addPolyline(polylineOptions);
         }
     }
 

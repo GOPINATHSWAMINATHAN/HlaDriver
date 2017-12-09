@@ -4,6 +4,7 @@ import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.graphics.Color;
 import android.media.MediaPlayer;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -44,69 +45,86 @@ import retrofit2.Response;
 
 public class ConsumerCall extends AppCompatActivity {
 
-    TextView txtTime, txtAddress, txtDistance;
+    TextView txtTime, txtAddress, txtDistance, timer;
     MediaPlayer mediaPlayer;
-    Button btnCancel,btnAccept;
+    Button btnCancel, btnAccept;
     IGoogleAPI mService;
-IFCMService mFCMService;
+    IFCMService mFCMService;
     String customerId;
-    double lat,lng;
+    double lat, lng;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_consumer_call);
         mService = Common.getGoogleAPI();
-        mFCMService=Common.getFCMService();
+        mFCMService = Common.getFCMService();
         txtAddress = (TextView) findViewById(R.id.txtAddress);
         txtDistance = (TextView) findViewById(R.id.txtDistance);
         txtTime = (TextView) findViewById(R.id.txtTime);
+        timer = (TextView) findViewById(R.id.timer);
 
-        btnAccept=(Button)findViewById(R.id.btnAccept);
-        btnCancel=(Button)findViewById(R.id.btnDecline);
 
-        btnCancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-if(!TextUtils.isEmpty(customerId))
-{
-    cancelBooking(customerId);
-}
-            }
-        });
-
-        btnAccept.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent=new Intent(getApplicationContext(),DriverTracking.class);
-                intent.putExtra("lat",lat);
-                intent.putExtra("lng",lng);
-                startActivity(intent);
-                finish();
-            }
-        });
-
-        mediaPlayer = MediaPlayer.create(this, R.raw.shooting);
+        btnAccept = (Button) findViewById(R.id.btnAccept);
+        btnCancel = (Button) findViewById(R.id.btnDecline);
+        mediaPlayer = MediaPlayer.create(getApplicationContext(), R.raw.shooting);
         mediaPlayer.setLooping(true);
         mediaPlayer.start();
+        new CountDownTimer(30000, 1000) {
 
-        if (getIntent() != null) {
-            lat = getIntent().getDoubleExtra("lat", -1.0);
-            lng = getIntent().getDoubleExtra("lng", -1.0);
-            customerId=getIntent().getStringExtra("customer");
-            getDirection(lat, lng);
-        }
+            @Override
+            public void onTick(long millisUntilFinished) {
+                timer.setText("Seconds remaining:" + millisUntilFinished / 1000);
+                btnCancel.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        if (!TextUtils.isEmpty(customerId)) {
+                            cancelBooking(customerId);
+                        }
+                    }
+                });
+
+                btnAccept.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        Intent intent = new Intent(getApplicationContext(), DriverTracking.class);
+                        intent.putExtra("lat", lat);
+                        intent.putExtra("lng", lng);
+
+                        intent.putExtra("customerId", customerId);
+                        startActivity(intent);
+                        finish();
+                    }
+                });
+
+
+                if (getIntent() != null) {
+                    lat = getIntent().getDoubleExtra("lat", -1.0);
+                    lng = getIntent().getDoubleExtra("lng", -1.0);
+                    customerId = getIntent().getStringExtra("customer");
+                    getDirection(lat, lng);
+                }
+            }
+
+            @Override
+            public void onFinish() {
+                timer.setText("TimeOut!");
+                finish();
+
+            }
+        }.start();
+
     }
 
     private void cancelBooking(String customerId) {
-        Token token=new Token(customerId);
-        Notification notification=new Notification("Notice","Driver has cancelled your request");
-        Sender sender=new Sender(token.getToken(),notification);
+        Token token = new Token(customerId);
+        Notification notification = new Notification("Cancel", "Driver has cancelled your request");
+        Sender sender = new Sender(token.getToken(), notification);
         mFCMService.sendMessage(sender).enqueue(new Callback<FCMResponse>() {
             @Override
             public void onResponse(Call<FCMResponse> call, Response<FCMResponse> response) {
-                if(response.body().success==1)
-                {
-                    Toast.makeText(getApplicationContext(),"Cancelled",Toast.LENGTH_LONG).show();
+                if (response.body().success == 1) {
+                    Toast.makeText(getApplicationContext(), "Cancelled", Toast.LENGTH_LONG).show();
                     finish();
                 }
             }
@@ -124,7 +142,7 @@ if(!TextUtils.isEmpty(customerId))
 
         String requestApi = null;
         try {
-            requestApi = "https://maps.googleapis.com/maps/api/directions/json?" + "mode=driving&" + "transit_routing_preference=less_driving&" + "origin=" + Common.mLastLocation.getLatitude() + "," + Common.mLastLocation.getLongitude() + "&" + "destination=" + lat + "," + lng + "&" + "key="+getResources().getString(R.string.google_direction_api);
+            requestApi = "https://maps.googleapis.com/maps/api/directions/json?" + "mode=driving&" + "transit_routing_preference=less_driving&" + "origin=" + Common.mLastLocation.getLatitude() + "," + Common.mLastLocation.getLongitude() + "&" + "destination=" + lat + "," + lng + "&" + "key=" + getResources().getString(R.string.google_direction_api);
             Log.d("EDMTDEV", requestApi);
 
             mService.getPath(requestApi).enqueue(new Callback<String>() {
