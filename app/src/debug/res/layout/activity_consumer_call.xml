@@ -75,7 +75,7 @@
             android:textColor="@android:color/white"
             android:background="#37bfa9"
             android:id="@+id/btnAccept"
-            android:text="ACCEPT"/>
+            android:text="@string/accept_booking"/>
         <Button
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -84,7 +84,7 @@
             android:textColor="@android:color/white"
             android:background="#37bfa9"
             android:id="@+id/btnDecline"
-            android:text="DECLINE"/>
+            android:text="@string/decline_booking"/>
 
     </LinearLayout>
 

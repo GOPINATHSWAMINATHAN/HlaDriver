@@ -2,4 +2,12 @@
     <string name="app_name">HlaDriver</string>
     <string name="title_activity_maps">Map</string>
     <string name="google_direction_api">AIzaSyCxgDv9CKfzjqxlyUYq3LmqMQfGZ57hy0s</string>
+    <string name="accept_booking">Accept</string>
+    <string name="decline_booking">Decline</string>
+    <string name="email">E-Mail</string>
+    <string name="password">Password</string>
+    <string name="Phone">Phone No.</string>
+    <string name="name">Name</string>
+    <string name="login">Login</string>
+    <string name="title_activity_trip_detail">Map</string>
 </resources>

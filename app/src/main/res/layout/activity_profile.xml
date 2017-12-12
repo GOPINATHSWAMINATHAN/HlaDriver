@@ -29,7 +29,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="E-mail"
+            android:hint="@string/email"
             android:textColorHint="#e45818" />
 
         <EditText
@@ -37,7 +37,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="Password"
+            android:hint="@string/password"
             android:textColorHint="#c46218" />
 
     </LinearLayout>
@@ -57,7 +57,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="phoneno"
+            android:hint="@string/Phone"
             android:textColorHint="#e45818" />
 
         <EditText
@@ -65,7 +65,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="Name"
+            android:hint="@string/name"
             android:textColorHint="#c46218" />
 
     </LinearLayout>
@@ -78,7 +78,7 @@
         android:layout_centerHorizontal="true"
         android:layout_marginTop="21dp"
         android:gravity="center"
-        android:text="LOGIN"
+        android:text="@string/login"
         android:textColor="#123" />
 
 </RelativeLayout>

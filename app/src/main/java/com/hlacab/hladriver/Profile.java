@@ -1,8 +1,13 @@
 package com.hlacab.hladriver;
 
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.location.LocationManager;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -29,10 +34,50 @@ public class Profile extends AppCompatActivity {
     FirebaseDatabase db;
     DatabaseReference users;
 
+    boolean gps_enabled = false;
+    boolean network_enabled = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        LocationManager lm = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
         setContentView(R.layout.activity_profile);
+        try {
+            gps_enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+
+        } catch (Exception ex) {
+
+        }
+
+        try {
+            network_enabled = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+        } catch (Exception ex) {
+
+        }
+
+        if (!gps_enabled && !network_enabled) {
+            AlertDialog.Builder dialog = new AlertDialog.Builder(getApplicationContext());
+            dialog.setMessage("Please switch on your location service. It has disabled!");
+            dialog.setPositiveButton("Enable", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+
+                    Intent myIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    getApplicationContext().startActivity(myIntent);
+
+                }
+            });
+
+            dialog.setNegativeButton("Disable", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    Toast.makeText(getApplicationContext(), "We could not track you, if the location disabled!", Toast.LENGTH_LONG).show();
+                }
+            });
+
+
+        }
         auth = FirebaseAuth.getInstance();
         db = FirebaseDatabase.getInstance();
         users = db.getReference(Common.user_driver_tb1);

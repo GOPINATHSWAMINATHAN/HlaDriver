@@ -6,6 +6,7 @@ import android.animation.ValueAnimator;
 import android.app.ProgressDialog;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Point;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Handler;
@@ -15,8 +16,11 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.animation.LinearInterpolator;
+import android.widget.Button;
 import android.widget.Toast;
+
 
 import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
@@ -74,6 +78,7 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
 
     double riderLat, riderLng;
 
+    double driverlat,driverlng;
     String customerId;
 
     private static final int MY_PERMISSION_REQUEST_CODE = 7000;
@@ -95,6 +100,8 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
 
     GeoFire geoFire;
 
+    Button btnStartTrip;
+    Location pickUpLocation;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -113,7 +120,76 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
         mService = Common.getGoogleAPI();
         mFCMService = Common.getFCMService();
         setUpLocation();
+
+        btnStartTrip=(Button)findViewById(R.id.btnStartTrip);
+        btnStartTrip.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(btnStartTrip.getText().equals("START TRIP"))
+                {
+                    pickUpLocation=Common.mLastLocation;
+                    btnStartTrip.setText("DROP OFF HERE");
+                }
+                else if(btnStartTrip.getText().equals("DROP OFF HERE"))
+                {
+                    calculateCashFee(pickUpLocation,Common.mLastLocation);
+                }
+            }
+        });
     }
+
+    private void calculateCashFee(Location pickUpLocation,Location mLastLocation)
+    {
+
+
+        String requestApi = null;
+        try {
+            requestApi = "https://maps.googleapis.com/maps/api/directions/json?" +
+                    "mode=driving&" +
+                    "transit_routing_preference=less_driving&" +
+                    "origin=" + pickUpLocation.getLatitude() + "," + pickUpLocation.getLongitude() + "&" +
+                    "destination=" + mLastLocation.getLatitude()+ "," + mLastLocation.getLongitude() + "&" + "key=" + getResources().getString(R.string.google_direction_api);
+            Log.d("EDMTDEV", requestApi);
+
+            mService.getPath(requestApi).enqueue(new Callback<String>() {
+                @Override
+                public void onResponse(Call<String> call, Response<String> response) {
+                    try {
+                       JSONObject jsonObject=new JSONObject(response.body().toString());
+                       JSONArray routes=jsonObject.getJSONArray("routes");
+                       JSONObject object=routes.getJSONObject(0);
+                       JSONArray legs=object.getJSONArray("legs");
+                       JSONObject legsObject=legs.getJSONObject(0);
+
+                       JSONObject distance=legsObject.getJSONObject("distance");
+                       String distance_text=distance.getString("text");
+
+
+                       Double distance_value=Double.parseDouble(distance_text.replaceAll("[^0-9\\\\.]+",""));
+
+                        JSONObject timeObject=legsObject.getJSONObject("distance");
+                        String time_text=timeObject.getString("text");
+
+
+                        Double time_value=Double.parseDouble(time_text.replaceAll("[^0-9\\\\.]+",""));
+
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<String> call, Throwable t) {
+                    Toast.makeText(getApplicationContext(), "" + t.getMessage(), Toast.LENGTH_LONG).show();
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
 
     private void setUpLocation() {
         if (checkPlayServices()) {
@@ -165,6 +241,17 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
         // Add a marker in Sydney and move the camera
         riderMarker = mMap.addCircle(new CircleOptions().center(new LatLng(riderLat, riderLng)).radius(50).strokeColor(Color.BLUE).fillColor(0x220000FF).strokeWidth(5.0f));
 
+        LatLng customer= new LatLng(riderLat,riderLng);
+        LatLng driver=new LatLng(driverlat,driverlng);
+
+
+//        DrawRouteMaps.getInstance(DriverTracking.this).draw(driver,customer,mMap);
+//        // DrawMarker.getInstance(Welcome.this).draw(mMap,pickupLocation,R.drawable.marker,"PickUp Location");
+//        DrawMarker.getInstance(DriverTracking.this).draw(mMap,customer,R.drawable.destination_marker,"Destination Location");
+//        LatLngBounds bounds=new LatLngBounds.Builder().include(driver).include(customer).build();
+//        Point displaySize=new Point();
+//        getWindowManager().getDefaultDisplay().getSize(displaySize);
+//        mMap.moveCamera(CameraUpdateFactory.newLatLngBounds(bounds,displaySize.x,250,30));
         //Create GeoFences with radius is 50m
         geoFire = new GeoFire(FirebaseDatabase.getInstance().getReference(Common.driver_tb1));
         GeoQuery geoQuery = geoFire.queryAtLocation(new GeoLocation(riderLat, riderLng), 0.05f);
@@ -235,6 +322,8 @@ public class DriverTracking extends FragmentActivity implements OnMapReadyCallba
 
             final double latitude = Common.mLastLocation.getLatitude();
             final double longitude = Common.mLastLocation.getLongitude();
+            driverlat=latitude;
+            driverlng=longitude;
             if (driverMarker != null)
                 driverMarker.remove();
             driverMarker = mMap.addMarker(new MarkerOptions().position(new LatLng(latitude, longitude)).title("You").icon(BitmapDescriptorFactory.defaultMarker()));
